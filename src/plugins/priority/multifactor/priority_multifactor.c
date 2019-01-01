@@ -537,6 +537,8 @@ static uint32_t _get_priority_internal(time_t start_time,
 		+ job_ptr->prio_factors->priority_part
 		+ job_ptr->prio_factors->priority_qos
 		+ tmp_tres
+		+ (double)(((int64_t)job_ptr->prio_factors->priority_admin)
+			   - NICE_OFFSET)
 		- (double)(((int64_t)job_ptr->prio_factors->nice)
 			   - NICE_OFFSET);
 
@@ -576,6 +578,9 @@ static uint32_t _get_priority_internal(time_t start_time,
 				 + job_ptr->prio_factors->priority_js
 				 + job_ptr->prio_factors->priority_qos
 				 + tmp_tres
+				 + (double)
+				   (((uint64_t)job_ptr->prio_factors->priority_admin)
+				    - NICE_OFFSET)
 				 - (double)
 				   (((uint64_t)job_ptr->prio_factors->nice)
 				    - NICE_OFFSET));
@@ -612,7 +617,11 @@ static uint32_t _get_priority_internal(time_t start_time,
 		double *pre_tres_factors = pre_factors.priority_tres;
 		assoc_mgr_lock_t locks = { NO_LOCK, NO_LOCK, NO_LOCK, NO_LOCK,
 					   READ_LOCK, NO_LOCK, NO_LOCK };
+		int64_t priority_admin =
+			(((int64_t)job_ptr->prio_factors->priority_admin) -
+			 NICE_OFFSET);
 
+		info("Admin priority is %"PRId64, priority_admin);
 		info("Weighted Age priority is %f * %u = %.2f",
 		     pre_factors.priority_age, weight_age,
 		     job_ptr->prio_factors->priority_age);
@@ -642,9 +651,10 @@ static uint32_t _get_priority_internal(time_t start_time,
 			assoc_mgr_unlock(&locks);
 		}
 
-		info("Job %u priority: %.2f + %.2f + %.2f + %.2f + %.2f + %2.f "
-		     "- %"PRId64" = %.2f",
-		     job_ptr->job_id, job_ptr->prio_factors->priority_age,
+		info("Job %u priority: %"PRId64" + %.2f + %.2f + %.2f + %.2f + %.2f + %2.f - %"PRId64" = %.2f",
+		     job_ptr->job_id,
+		     priority_admin,
+		     job_ptr->prio_factors->priority_age,
 		     job_ptr->prio_factors->priority_fs,
 		     job_ptr->prio_factors->priority_js,
 		     job_ptr->prio_factors->priority_part,
@@ -2087,6 +2097,8 @@ extern void set_priority_factors(time_t start_time, struct job_record *job_ptr)
 		job_ptr->prio_factors->priority_part =
 			job_ptr->part_ptr->norm_priority;
 	}
+
+	job_ptr->prio_factors->priority_admin = job_ptr->admin_prio_factor;
 
 	if (qos_ptr && qos_ptr->priority && weight_qos) {
 		job_ptr->prio_factors->priority_qos =
